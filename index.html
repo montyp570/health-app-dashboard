@@ -305,11 +305,14 @@ async function fetchTab(gid) {
     const text = await res.text();
     const jsonStr = text.substring(47).slice(0, -2);
     const parsed = JSON.parse(jsonStr);
+    const headersAlreadyParsed = parsed.table.parsedNumHeaders > 0;
     const headers = parsed.table.cols.map((c, i) => {
+      if (headersAlreadyParsed) return c.label;
       const firstRow = parsed.table.rows[0];
       return firstRow && firstRow.c[i] ? firstRow.c[i].v : c.label;
     });
-    const dataRows = parsed.table.rows.slice(1).map(row => {
+    const dataStartIndex = headersAlreadyParsed ? 0 : 1;
+    const dataRows = parsed.table.rows.slice(dataStartIndex).map(row => {
       const obj = {};
       row.c.forEach((cell, i) => { obj[headers[i]] = cell ? cell.v : null; });
       return obj;
