@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Log</title>
+<style>
+  :root {
+    --ink: #1C1B19;
+    --chalk: #F7F5F0;
+    --iron: #8B8378;
+    --flag: #D6541C;
+    --moss: #3D5A4C;
+    --card: #E8E3D8;
+    --hairline: #D8D2C4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--chalk);
+    color: var(--ink);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .title-block h1 {
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+  }
+
+  .title-block p {
+    color: var(--iron);
+    font-size: 13px;
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+
+  .stamp {
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 2.5px solid var(--moss);
+    color: var(--moss);
+    padding: 6px 14px;
+    transform: rotate(-4deg);
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .stamp.pending {
+    border-color: var(--iron);
+    color: var(--iron);
+  }
+
+  section {
+    margin-bottom: 36px;
+  }
+
+  .eyebrow {
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--iron);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .eyebrow::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--hairline);
+  }
+
+  .ledger-line {
+    background: var(--card);
+    border-radius: 4px;
+    padding: 18px 20px;
+  }
+
+  .field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--hairline);
+    font-size: 14px;
+  }
+  .field-row:last-child { border-bottom: none; }
+
+  .field-label {
+    color: var(--iron);
+  }
+
+  .field-value {
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .field-value.good { color: var(--moss); }
+  .field-value.flag { color: var(--flag); }
+
+  .transcript-quote {
+    font-size: 13px;
+    color: var(--iron);
+    font-style: italic;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--hairline);
+    line-height: 1.6;
+  }
+
+  .week-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .week-stat {
+    background: var(--card);
+    border-radius: 4px;
+    padding: 14px 16px;
+    flex: 1;
+    min-width: 130px;
+  }
+
+  .week-stat .num {
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+  }
+
+  .week-stat .label {
+    font-size: 11px;
+    color: var(--iron);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  .directive {
+    background: var(--ink);
+    color: var(--chalk);
+    border-radius: 4px;
+    padding: 20px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .directive .rec {
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .directive .why {
+    font-size: 13px;
+    color: #B8B3A6;
+    text-align: right;
+  }
+
+  .findings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .finding {
+    background: var(--card);
+    border-left: 3px solid var(--moss);
+    border-radius: 0 4px 4px 0;
+    padding: 12px 16px;
+  }
+  .finding.flag-type { border-left-color: var(--flag); }
+
+  .finding .f-title {
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+  .finding .f-detail {
+    font-size: 13px;
+    color: var(--iron);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+
+  .empty-state {
+    background: var(--card);
+    border-radius: 4px;
+    padding: 24px 20px;
+    text-align: center;
+    color: var(--iron);
+    font-size: 13.5px;
+  }
+
+  .loading {
+    color: var(--iron);
+    font-size: 13px;
+    padding: 12px 0;
+  }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hairline);
+    font-size: 11.5px;
+    color: var(--iron);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 480px) {
+    .title-block h1 { font-size: 24px; }
+    header { flex-direction: column; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-block">
+      <h1>Training Log</h1>
+      <p id="today-date">—</p>
+    </div>
+    <div class="stamp pending" id="status-stamp">LOADING</div>
+  </header>
+
+  <section>
+    <div class="eyebrow">Today</div>
+    <div class="ledger-line" id="today-section">
+      <div class="loading">Reading today's entry…</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">This Week</div>
+    <div id="week-section">
+      <div class="loading">Reading weekly trends…</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Tomorrow</div>
+    <div id="weather-section">
+      <div class="loading">Checking forecast…</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Agent Findings</div>
+    <div id="findings-section">
+      <div class="loading">Checking for findings…</div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Personal training log · single user</span>
+    <span id="last-updated">—</span>
+  </footer>
+</div>
+
+<script>
+const SHEET_ID = '1ne8KrrVYxRq1TJYBFE9LmRrwTp2itOMWiO4hp4bdLLQ';
+const GIDS = {
+  daily_log: 0,
+  weekly_log: 537109287,
+  weather_log: 1201988282,
+  agent_findings: 1931859222
+};
+
+async function fetchTab(gid) {
+  if (gid === null || gid === undefined) return null;
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    const jsonStr = text.substring(47).slice(0, -2);
+    const parsed = JSON.parse(jsonStr);
+    const headers = parsed.table.cols.map((c, i) => {
+      const firstRow = parsed.table.rows[0];
+      return firstRow && firstRow.c[i] ? firstRow.c[i].v : c.label;
+    });
+    const dataRows = parsed.table.rows.slice(1).map(row => {
+      const obj = {};
+      row.c.forEach((cell, i) => { obj[headers[i]] = cell ? cell.v : null; });
+      return obj;
+    });
+    return dataRows;
+  } catch (e) {
+    console.error('Fetch failed for gid', gid, e);
+    return null;
+  }
+}
+
+function fmtDate(d) {
+  const date = new Date(d);
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function renderToday(rows) {
+  const stamp = document.getElementById('status-stamp');
+  const section = document.getElementById('today-section');
+  const dateEl = document.getElementById('today-date');
+  dateEl.textContent = fmtDate(new Date());
+
+  if (!rows || rows.length === 0) {
+    stamp.textContent = 'PENDING';
+    stamp.classList.add('pending');
+    section.innerHTML = '<div class="empty-state">Nothing logged yet today. Record a voice note to get started.</div>';
+    return;
+  }
+
+  const today = rows[rows.length - 1];
+  stamp.textContent = 'LOGGED';
+  stamp.classList.remove('pending');
+
+  const statusClass = (v) => v === 'yes' || v === 'good' ? 'good' : (v === 'no' || v === 'bad' || v === 'poor' ? 'flag' : '');
+
+  section.innerHTML = `
+    <div class="field-row"><span class="field-label">Workout</span><span class="field-value ${statusClass(today.workout_status)}">${today.workout_status || '—'}</span></div>
+    <div class="field-row"><span class="field-label">Water intake</span><span class="field-value ${statusClass(today.water_intake)}">${today.water_intake || '—'}</span></div>
+    <div class="field-row"><span class="field-label">Eating</span><span class="field-value ${statusClass(today.eating_quality)}">${today.eating_quality || '—'}</span></div>
+    ${today.soreness_mentions ? `<div class="field-row"><span class="field-label">Noted</span><span class="field-value flag">${today.soreness_mentions}</span></div>` : ''}
+    ${today.raw_transcript ? `<div class="transcript-quote">"${today.raw_transcript}"</div>` : ''}
+  `;
+}
+
+function renderWeek(rows) {
+  const section = document.getElementById('week-section');
+  if (!rows || rows.length === 0) {
+    section.innerHTML = '<div class="empty-state">No weekly check-in logged yet. Weight, runs/bikes, and dumbbell weight will appear here.</div>';
+    return;
+  }
+  const wk = rows[rows.length - 1];
+  section.innerHTML = `
+    <div class="week-row">
+      <div class="week-stat"><div class="num">${wk.starting_weight || '—'}</div><div class="label">Weight (lbs)</div></div>
+      <div class="week-stat"><div class="num">${wk.dumbbell_weight || '—'}</div><div class="label">Dumbbells (lbs)</div></div>
+      <div class="week-stat"><div class="num">${wk.ran === 'true' || wk.ran === true ? 'Yes' : 'No'}</div><div class="label">Ran this week</div></div>
+      <div class="week-stat"><div class="num">${wk.biked === 'true' || wk.biked === true ? 'Yes' : 'No'}</div><div class="label">Biked this week</div></div>
+    </div>
+  `;
+}
+
+function renderWeather(rows) {
+  const section = document.getElementById('weather-section');
+  if (!rows || rows.length === 0) {
+    section.innerHTML = '<div class="empty-state">No forecast pulled yet.</div>';
+    return;
+  }
+  const w = rows[rows.length - 1];
+  const rec = (w.cardio_recommendation || '—').toUpperCase();
+  section.innerHTML = `
+    <div class="directive">
+      <span class="rec">${rec}</span>
+      <span class="why">${w.forecast_tomorrow || ''}${w.temp_high ? ` · ${w.temp_high}°` : ''}</span>
+    </div>
+  `;
+}
+
+function renderFindings(rows) {
+  const section = document.getElementById('findings-section');
+  if (!rows || rows.length === 0) {
+    section.innerHTML = '<div class="empty-state">No findings yet. The agent reviews recent history and will flag anything worth attention here.</div>';
+    return;
+  }
+  section.innerHTML = '<div class="findings-list">' + rows.map(f => `
+    <div class="finding ${f.finding_type === 'flag' ? 'flag-type' : ''}">
+      <div class="f-title">${f.title || ''}</div>
+      <div class="f-detail">${f.detail || ''}</div>
+    </div>
+  `).join('') + '</div>';
+}
+
+async function loadDashboard() {
+  const [daily, weekly, weather, findings] = await Promise.all([
+    fetchTab(GIDS.daily_log),
+    fetchTab(GIDS.weekly_log),
+    fetchTab(GIDS.weather_log),
+    fetchTab(GIDS.agent_findings)
+  ]);
+  renderToday(daily);
+  renderWeek(weekly);
+  renderWeather(weather);
+  renderFindings(findings);
+  document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
