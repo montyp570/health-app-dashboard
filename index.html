@@ -269,6 +269,13 @@
   </section>
 
   <section>
+    <div class="eyebrow">This Morning</div>
+    <div id="morningcheck-section">
+      <div class="loading">Checking this morning's recommendation…</div>
+    </div>
+  </section>
+
+  <section>
     <div class="eyebrow">Tomorrow</div>
     <div id="weather-section">
       <div class="loading">Checking forecast…</div>
@@ -302,7 +309,8 @@ const GIDS = {
   weekly_log: 537109287,
   weather_log: 1201988282,
   agent_findings: 1931859222,
-  weekly_summaries: 1745857925
+  weekly_summaries: 1745857925,
+  morning_checks: 1057893899
 };
 
 async function fetchTab(gid) {
@@ -382,6 +390,20 @@ function renderWeek(rows) {
   `;
 }
 
+function renderMorningCheck(rows) {
+  const section = document.getElementById('morningcheck-section');
+  if (!rows || rows.length === 0) {
+    section.innerHTML = '<div class="empty-state">No morning check yet today. One runs automatically at 6:30am.</div>';
+    return;
+  }
+  const latest = rows[rows.length - 1];
+  section.innerHTML = `
+    <div class="directive">
+      <span class="rec">${(latest.recommendation || '').toUpperCase()}</span>
+    </div>
+  `;
+}
+
 function renderWeather(rows) {
   const section = document.getElementById('weather-section');
   if (!rows || rows.length === 0) {
@@ -428,15 +450,17 @@ function renderFindings(rows) {
 }
 
 async function loadDashboard() {
-  const [daily, weekly, weather, findings, weeklySummaries] = await Promise.all([
+  const [daily, weekly, weather, findings, weeklySummaries, morningChecks] = await Promise.all([
     fetchTab(GIDS.daily_log),
     fetchTab(GIDS.weekly_log),
     fetchTab(GIDS.weather_log),
     fetchTab(GIDS.agent_findings),
-    fetchTab(GIDS.weekly_summaries)
+    fetchTab(GIDS.weekly_summaries),
+    fetchTab(GIDS.morning_checks)
   ]);
   renderToday(daily);
   renderWeek(weekly);
+  renderMorningCheck(morningChecks);
   renderWeather(weather);
   renderWeeklySummary(weeklySummaries);
   renderFindings(findings);
