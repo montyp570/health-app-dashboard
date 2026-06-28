@@ -213,6 +213,13 @@
     line-height: 1.5;
   }
 
+  .finding .f-date {
+    font-size: 11px;
+    color: var(--iron);
+    margin-top: 8px;
+    opacity: 0.75;
+  }
+
   .empty-state {
     background: var(--card);
     border-radius: 4px;
@@ -255,20 +262,6 @@
   </header>
 
   <section>
-    <div class="eyebrow">Today</div>
-    <div class="ledger-line" id="today-section">
-      <div class="loading">Reading today's entry…</div>
-    </div>
-  </section>
-
-  <section>
-    <div class="eyebrow">This Week</div>
-    <div id="week-section">
-      <div class="loading">Reading weekly trends…</div>
-    </div>
-  </section>
-
-  <section>
     <div class="eyebrow">This Morning</div>
     <div id="morningcheck-section">
       <div class="loading">Checking this morning's recommendation…</div>
@@ -276,9 +269,23 @@
   </section>
 
   <section>
+    <div class="eyebrow">Today</div>
+    <div class="ledger-line" id="today-section">
+      <div class="loading">Reading today's entry…</div>
+    </div>
+  </section>
+
+  <section>
     <div class="eyebrow">Tomorrow</div>
     <div id="weather-section">
       <div class="loading">Checking forecast…</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">This Week</div>
+    <div id="week-section">
+      <div class="loading">Reading weekly trends…</div>
     </div>
   </section>
 
@@ -345,6 +352,12 @@ function fmtDate(d) {
   return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+function toSentenceCase(s) {
+  if (!s) return s;
+  const str = String(s);
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 function renderToday(rows) {
   const stamp = document.getElementById('status-stamp');
   const section = document.getElementById('today-section');
@@ -363,12 +376,14 @@ function renderToday(rows) {
   stamp.classList.remove('pending');
 
   const statusClass = (v) => v === 'yes' || v === 'good' ? 'good' : (v === 'no' || v === 'bad' || v === 'poor' ? 'flag' : '');
+  // Strip the trailing " - recurring:true/false" marker before display; it's an internal flag for the judgment layer, not meant for the dashboard.
+  const cleanSoreness = today.soreness_mentions ? String(today.soreness_mentions).replace(/\s*-\s*recurring:(true|false)\s*$/i, '').trim() : '';
 
   section.innerHTML = `
-    <div class="field-row"><span class="field-label">Workout</span><span class="field-value ${statusClass(today.workout_status)}">${today.workout_status || '—'}</span></div>
-    <div class="field-row"><span class="field-label">Water intake</span><span class="field-value ${statusClass(today.water_intake)}">${today.water_intake || '—'}</span></div>
-    <div class="field-row"><span class="field-label">Eating</span><span class="field-value ${statusClass(today.eating_quality)}">${today.eating_quality || '—'}</span></div>
-    ${today.soreness_mentions ? `<div class="field-row"><span class="field-label">Noted</span><span class="field-value flag">${today.soreness_mentions}</span></div>` : ''}
+    <div class="field-row"><span class="field-label">Workout</span><span class="field-value ${statusClass(today.workout_status)}">${toSentenceCase(today.workout_status) || '—'}</span></div>
+    <div class="field-row"><span class="field-label">Water intake</span><span class="field-value ${statusClass(today.water_intake)}">${toSentenceCase(today.water_intake) || '—'}</span></div>
+    <div class="field-row"><span class="field-label">Eating</span><span class="field-value ${statusClass(today.eating_quality)}">${toSentenceCase(today.eating_quality) || '—'}</span></div>
+    ${cleanSoreness ? `<div class="field-row"><span class="field-label">Noted</span><span class="field-value flag">${toSentenceCase(cleanSoreness)}</span></div>` : ''}
     ${today.raw_transcript ? `<div class="transcript-quote">"${today.raw_transcript}"</div>` : ''}
   `;
 }
@@ -411,13 +426,26 @@ function renderWeather(rows) {
     return;
   }
   const w = rows[rows.length - 1];
-  const rec = (w.cardio_recommendation || '—').toUpperCase();
+  const rec = (w.cardio_recommendation || '—').replace(/['"]/g, '').trim().toUpperCase();
+  const tempDisplay = (w.temp_high !== null && w.temp_high !== undefined && w.temp_high !== '')
+    ? Number(w.temp_high).toFixed(1)
+    : null;
   section.innerHTML = `
     <div class="directive">
       <span class="rec">${rec}</span>
-      <span class="why">${w.forecast_tomorrow || ''}${w.temp_high ? ` · ${w.temp_high}°` : ''}</span>
+      <span class="why">${w.forecast_tomorrow || ''}${tempDisplay !== null ? ` · ${tempDisplay}°` : ''}</span>
     </div>
   `;
+}
+
+function fmtWeekEndingSaturday(d) {
+  // Weeks run Sunday-to-Saturday; given any date that falls within the week, return that week's Saturday.
+  const date = new Date(d);
+  const day = date.getDay(); // 0 = Sunday ... 6 = Saturday
+  const daysUntilSaturday = 6 - day;
+  const saturday = new Date(date);
+  saturday.setDate(date.getDate() + daysUntilSaturday);
+  return saturday.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 function renderWeeklySummary(rows) {
@@ -430,7 +458,7 @@ function renderWeeklySummary(rows) {
   section.innerHTML = `
     <div class="ledger-line">
       <p style="font-size:14px; line-height:1.6; margin:0;">${latest.summary_text || ''}</p>
-      <p style="font-size:11px; color:var(--color-text-tertiary); margin-top:12px;">Week ending ${latest.week_ending ? fmtDate(latest.week_ending) : ''}</p>
+      <p style="font-size:11px; color:var(--iron); margin-top:12px;">Week ending ${latest.week_ending ? fmtWeekEndingSaturday(latest.week_ending) : ''}</p>
     </div>
   `;
 }
@@ -441,10 +469,12 @@ function renderFindings(rows) {
     section.innerHTML = '<div class="empty-state">No findings yet. The agent reviews recent history and will flag anything worth attention here.</div>';
     return;
   }
-  section.innerHTML = '<div class="findings-list">' + rows.map(f => `
+  const reversed = [...rows].reverse();
+  section.innerHTML = '<div class="findings-list">' + reversed.map(f => `
     <div class="finding ${f.finding_type === 'flag' ? 'flag-type' : ''}">
       <div class="f-title">${f.title || ''}</div>
       <div class="f-detail">${f.detail || ''}</div>
+      ${f.date ? `<div class="f-date">${fmtDate(f.date)}</div>` : ''}
     </div>
   `).join('') + '</div>';
 }
