@@ -613,17 +613,14 @@ function buildDataContext(data) {
     if (!rows || rows.length === 0) return `${label}: no data`;
     return `${label} (${rows.length} entries, most recent first):
 ` +
-      [...rows].reverse().slice(0, 30).map(r => JSON.stringify(r)).join('
-');
+      [...rows].reverse().slice(0, 30).map(r => JSON.stringify(r)).join('\n');
   };
   return [
     fmt(data.daily, 'daily_log'),
     fmt(data.weekly, 'weekly_log'),
     fmt(data.findings, 'agent_findings'),
     fmt(data.summaries, 'weekly_summaries'),
-  ].join('
-
-');
+  ].join('\n');
 }
 
 function qaAddBubble(text, role) {
@@ -684,10 +681,7 @@ async function qaAsk(question) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        system: QA_SYSTEM + '
-
-Training data:
-' + context,
+        system: QA_SYSTEM + '\n\nTraining data:\n' + context,
         messages: qaHistory,
       })
     });
@@ -702,9 +696,7 @@ Training data:
       return;
     }
 
-    const text = (result.content || []).filter(b => b.type === 'text').map(b => b.text).join('
-
-') || 'No response.';
+    const text = (result.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n') || 'No response.';
     qaHistory = [...qaHistory, { role: 'assistant', content: text }];
     qaAddBubble(text, 'assistant');
 
@@ -719,28 +711,48 @@ Training data:
 
 function initQa() {
   const sugg = document.getElementById('qa-suggestions');
-  QA_SUGGESTIONS.forEach(s => {
-    const b = document.createElement('button');
-    b.className = 'qa-chip';
-    b.textContent = s;
-    b.onclick = () => qaAsk(s);
-    sugg.appendChild(b);
-  });
-
   const input = document.getElementById('qa-input');
   const btn = document.getElementById('qa-btn');
 
-  function onInputChange() { qaSetBtnState(!!input.value.trim() && !qaLoading); }
+  if (!sugg || !input || !btn) {
+    console.error('Q&A elements not found, retrying...');
+    setTimeout(initQa, 100);
+    return;
+  }
+
+  QA_SUGGESTIONS.forEach(function(s) {
+    const b = document.createElement('button');
+    b.className = 'qa-chip';
+    b.textContent = s;
+    b.onclick = function() { qaAsk(s); };
+    sugg.appendChild(b);
+  });
+
+  function onInputChange() {
+    qaSetBtnState(input.value.trim().length > 0 && !qaLoading);
+  }
+
   input.addEventListener('input', onInputChange);
   input.addEventListener('keyup', onInputChange);
-  input.oninput = onInputChange;
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); qaAsk(input.value); }
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (input.value.trim() && !qaLoading) qaAsk(input.value);
+    }
   });
-  btn.addEventListener('click', () => { if (!qaLoading) qaAsk(input.value); });
+
+  btn.onclick = function() {
+    if (input.value.trim() && !qaLoading) qaAsk(input.value);
+  };
 }
 
-initQa();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initQa);
+} else {
+  initQa();
+}
 
 </script>
 </body>
