@@ -249,6 +249,73 @@
     .title-block h1 { font-size: 24px; }
     header { flex-direction: column; gap: 16px; }
   }
+
+  .qa-bubble {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .qa-bubble.user {
+    background: var(--ink);
+    color: var(--chalk);
+    border-radius: 16px 16px 4px 16px;
+    align-self: flex-end;
+    margin-left: auto;
+  }
+  .qa-bubble.assistant {
+    background: white;
+    color: var(--ink);
+    border: 1.5px solid var(--hairline);
+    border-radius: 16px 16px 16px 4px;
+    align-self: flex-start;
+  }
+  .qa-bubble.error {
+    background: #FEF0EB;
+    border: 1.5px solid var(--flag);
+    color: var(--flag);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .qa-typing {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 12px 16px;
+    background: white;
+    border: 1.5px solid var(--hairline);
+    border-radius: 16px 16px 16px 4px;
+    width: fit-content;
+  }
+  .qa-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--moss);
+    animation: qa-pulse 1.2s ease-in-out infinite;
+  }
+  .qa-dot:nth-child(2) { animation-delay: 0.2s; }
+  .qa-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes qa-pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+  .qa-chip {
+    background: white;
+    border: 1.5px solid var(--hairline);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .qa-chip:hover { border-color: var(--iron); }
+  #qa-input:focus { border-color: var(--ink); }
 </style>
 </head>
 <body>
@@ -300,6 +367,20 @@
     <div class="eyebrow">Agent Findings</div>
     <div id="findings-section">
       <div class="loading">Checking for findings…</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Ask</div>
+    <div id="qa-section">
+      <div id="qa-suggestions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+      <div id="qa-messages" style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px;"></div>
+      <div style="display:flex;gap:10px;align-items:flex-end;">
+        <textarea id="qa-input" placeholder="Ask about your training history…" rows="1"
+          style="flex:1;background:white;border:1.5px solid var(--hairline);border-radius:20px;padding:9px 16px;font-size:14px;font-family:inherit;resize:none;outline:none;color:var(--ink);line-height:1.5;transition:border-color 0.15s;"></textarea>
+        <button id="qa-btn"
+          style="background:var(--hairline);color:var(--iron);border:none;border-radius:20px;padding:9px 20px;font-size:12px;font-weight:700;letter-spacing:0.8px;font-family:inherit;cursor:default;transition:background 0.15s,color 0.15s;white-space:nowrap;">ASK</button>
+      </div>
     </div>
   </section>
 
@@ -498,6 +579,166 @@ async function loadDashboard() {
 }
 
 loadDashboard();
+
+
+// ── Q&A ──────────────────────────────────────────────────────
+const QA_SUGGESTIONS = [
+  'How has my knee been lately?',
+  'Am I on a dumbbell plateau?',
+  'How consistent have my workouts been?',
+  'Summarize my last 5 training sessions',
+  'Any patterns in my water intake?',
+];
+
+const QA_SYSTEM = `You are a personal health and fitness coach answering questions about Michael's training log. You have been given the full contents of his training data below. Answer specifically and honestly, referencing actual dates, numbers, and patterns from the data. If the data doesn't contain enough to answer, say so directly. Keep answers concise and coach-like — no fluff, no generic advice.`;
+
+let qaHistory = [];
+let qaLoading = false;
+let qaDataCache = null;
+
+async function fetchQaData() {
+  if (qaDataCache) return qaDataCache;
+  const [daily, weekly, findings, summaries] = await Promise.all([
+    fetchTab(GIDS.daily_log),
+    fetchTab(GIDS.weekly_log),
+    fetchTab(GIDS.agent_findings),
+    fetchTab(GIDS.weekly_summaries),
+  ]);
+  qaDataCache = { daily, weekly, findings, summaries };
+  return qaDataCache;
+}
+
+function buildDataContext(data) {
+  const fmt = (rows, label) => {
+    if (!rows || rows.length === 0) return `${label}: no data`;
+    return `${label} (${rows.length} entries, most recent first):
+` +
+      [...rows].reverse().slice(0, 30).map(r => JSON.stringify(r)).join('
+');
+  };
+  return [
+    fmt(data.daily, 'daily_log'),
+    fmt(data.weekly, 'weekly_log'),
+    fmt(data.findings, 'agent_findings'),
+    fmt(data.summaries, 'weekly_summaries'),
+  ].join('
+
+');
+}
+
+function qaAddBubble(text, role) {
+  const msgs = document.getElementById('qa-messages');
+  const div = document.createElement('div');
+  div.className = 'qa-bubble ' + role;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function qaAddTyping() {
+  const msgs = document.getElementById('qa-messages');
+  const div = document.createElement('div');
+  div.id = 'qa-typing';
+  div.className = 'qa-typing';
+  div.innerHTML = '<div class="qa-dot"></div><div class="qa-dot"></div><div class="qa-dot"></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function qaRemoveTyping() {
+  const t = document.getElementById('qa-typing');
+  if (t) t.remove();
+}
+
+function qaSetBtnState(active) {
+  const btn = document.getElementById('qa-btn');
+  btn.style.background = active ? 'var(--ink)' : 'var(--hairline)';
+  btn.style.color = active ? 'var(--chalk)' : 'var(--iron)';
+  btn.style.cursor = active ? 'pointer' : 'default';
+}
+
+async function qaAsk(question) {
+  if (!question.trim() || qaLoading) return;
+  qaLoading = true;
+  const input = document.getElementById('qa-input');
+  input.value = '';
+  qaSetBtnState(false);
+
+  // Hide suggestions after first question
+  const sugg = document.getElementById('qa-suggestions');
+  if (sugg) sugg.style.display = 'none';
+
+  qaAddBubble(question, 'user');
+  qaAddTyping();
+
+  try {
+    const data = await fetchQaData();
+    const context = buildDataContext(data);
+    const userMsg = { role: 'user', content: question };
+    qaHistory = [...qaHistory, userMsg];
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: QA_SYSTEM + '
+
+Training data:
+' + context,
+        messages: qaHistory,
+      })
+    });
+
+    const result = await res.json();
+    qaRemoveTyping();
+
+    if (result.error) {
+      qaHistory = qaHistory.slice(0, -1);
+      qaAddBubble(result.error.message || 'Something went wrong.', 'error');
+      qaLoading = false;
+      return;
+    }
+
+    const text = (result.content || []).filter(b => b.type === 'text').map(b => b.text).join('
+
+') || 'No response.';
+    qaHistory = [...qaHistory, { role: 'assistant', content: text }];
+    qaAddBubble(text, 'assistant');
+
+  } catch(e) {
+    qaRemoveTyping();
+    qaHistory = qaHistory.slice(0, -1);
+    qaAddBubble('Network error — check your connection and try again.', 'error');
+  }
+
+  qaLoading = false;
+}
+
+function initQa() {
+  const sugg = document.getElementById('qa-suggestions');
+  QA_SUGGESTIONS.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'qa-chip';
+    b.textContent = s;
+    b.onclick = () => qaAsk(s);
+    sugg.appendChild(b);
+  });
+
+  const input = document.getElementById('qa-input');
+  const btn = document.getElementById('qa-btn');
+
+  input.addEventListener('input', () => qaSetBtnState(!!input.value.trim() && !qaLoading));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); qaAsk(input.value); }
+  });
+  btn.addEventListener('click', () => qaAsk(input.value));
+}
+
+initQa();
+
 </script>
 </body>
 </html>
