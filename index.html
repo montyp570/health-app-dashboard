@@ -730,11 +730,14 @@ function initQa() {
   const input = document.getElementById('qa-input');
   const btn = document.getElementById('qa-btn');
 
-  input.addEventListener('input', () => qaSetBtnState(!!input.value.trim() && !qaLoading));
+  function onInputChange() { qaSetBtnState(!!input.value.trim() && !qaLoading); }
+  input.addEventListener('input', onInputChange);
+  input.addEventListener('keyup', onInputChange);
+  input.oninput = onInputChange;
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); qaAsk(input.value); }
   });
-  btn.addEventListener('click', () => qaAsk(input.value));
+  btn.addEventListener('click', () => { if (!qaLoading) qaAsk(input.value); });
 }
 
 initQa();
